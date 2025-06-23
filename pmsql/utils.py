@@ -6,10 +6,10 @@ def conectar():
     """
     try:
         conn = psycopg2.connect(
-            dbname='aula_postgre',
-            host='localhost',
-            user='postgres',
-            password='abc@123',
+            dbname='',
+            host='',
+            user='',
+            password='',
         )
         return conn
     except Exception as e:
