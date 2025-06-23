@@ -17,7 +17,7 @@ Conexão entre python e o banco de dados PostGreSQL, para iniciantes, uma boa ap
 
 ## Screenshoot da página
 ![Image](https://github.com/user-attachments/assets/38c79620-f4c7-413d-8030-de25681a3338)
-![Image](https://github.com/user-attachments/assets/3a20c2c9-bbee-4d17-ae87-f36889324468)
+![Image](https://github.com/user-attachments/assets/3783d2dd-4d71-4bcf-af08-537b3acbb9a2)
 
 ## ✨ Funcionalidades
 
