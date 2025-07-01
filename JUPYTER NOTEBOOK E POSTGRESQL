@@ -1,0 +1,106 @@
+#Conexão via JUPYTER NOTEBOOK E POSTGRESQL  
+
+import requests
+import pandas as pd
+import psycopg2
+
+# --- 1. Coleta de Dados da API ---
+api_url = "https://restcountries.com/v3.1/name/brazil"
+response = requests.get(api_url)
+
+if response.status_code == 200:
+    data = response.json()
+    country_data = data[0] # Pegar o primeiro (e único) resultado para o Brasil
+
+    # Extrair os dados relevantes para a sua tabela
+    nome_oficial = country_data['name']['official']
+    nome_comum = country_data['name']['common']
+    capital = country_data['capital'][0] if 'capital' in country_data and country_data['capital'] else None
+    populacao = country_data['population']
+    area_km2 = country_data['area']
+    regiao = country_data['region']
+    
+    # Moeda: a estrutura da moeda pode ser um dicionário aninhado,
+    # então extraímos a primeira chave e seus valores.
+    # Adicionando verificação para garantir que 'currencies' exista antes de tentar acessar keys()
+    moeda_codigo = list(country_data['currencies'].keys())[0] if 'currencies' in country_data and country_data['currencies'] else None
+    moeda_nome = country_data['currencies'][moeda_codigo]['name'] if moeda_codigo else None
+
+    # Idiomas: unir os valores do dicionário de idiomas em uma string
+    idiomas = ', '.join(country_data['languages'].values()) if 'languages' in country_data else None
+
+    print(f"Dados da API para {nome_comum} coletados com sucesso.")
+
+else:
+    print(f"Erro ao coletar dados da API. Status: {response.status_code}")
+    # Considerar usar sys.exit() ou raised Exception em scripts,
+    # mas para Jupyter, 'exit()' funciona para parar a execução da célula.
+    exit() # Interrompe a execução se a API falhar.
+
+# --- 2. Configurações e Conexão com o PostgreSQL ---
+db_config = {
+    "host": "localhost",
+    "database": "country_info",
+    "user": "", #Nome Usuario
+    "password": "", # Sua senha atualizada
+    "port": "", #Porta do Banco
+    "options": "-c client_encoding=UTF8" # Ajuda com caracteres especiais na senha/conexão
+}
+
+conn = None # Inicializa a variável de conexão
+cursor = None # Inicializa a variável do cursor
+
+try:
+    conn = psycopg2.connect(**db_config)
+    cursor = conn.cursor()
+    print("Conexão com o PostgreSQL estabelecida com sucesso.")
+
+except psycopg2.Error as e:
+    print(f"Erro ao conectar ao PostgreSQL: {e}")
+    # Para o Jupyter, 'exit()' funciona. Em scripts, um 'raise' seria mais comum.
+    exit() # Interrompe a execução se a conexão com o DB falhar.
+
+# --- 3. Inserção de Dados no PostgreSQL ---
+try:
+    insert_query = """
+    INSERT INTO paises_info (nome_oficial, nome_comum, capital, populacao, area_km2, regiao, moeda_codigo, moeda_nome, idiomas)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+    ON CONFLICT (nome_oficial) DO UPDATE SET
+        nome_comum = EXCLUDED.nome_comum,
+        capital = EXCLUDED.capital,
+        populacao = EXCLUDED.populacao,
+        area_km2 = EXCLUDED.area_km2,
+        regiao = EXCLUDED.regiao,
+        moeda_codigo = EXCLUDED.moeda_codigo,
+        moeda_nome = EXCLUDED.moeda_nome,
+        idiomas = EXCLUDED.idiomas;
+    """
+
+    data_to_insert = (
+        nome_oficial,
+        nome_comum,
+        capital,
+        populacao,
+        area_km2,
+        regiao,
+        moeda_codigo,
+        moeda_nome,
+        idiomas
+    )
+
+    cursor.execute(insert_query, data_to_insert)
+    conn.commit()
+    print("Dados inseridos/atualizados no PostgreSQL com sucesso!")
+
+except psycopg2.Error as e:
+    if conn:
+        conn.rollback() # Reverte a transação em caso de erro na inserção
+    print(f"Erro ao inserir/atualizar dados no PostgreSQL: {e}")
+
+finally:
+    # --- 4. Fechar Conexão ---
+    if cursor:
+        cursor.close()
+    if conn:
+        conn.close()
+    print("Conexão com o PostgreSQL fechada.")
